@@ -18,7 +18,7 @@ finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
 
 # Kafka producer ayarları
 producer = KafkaProducer(
-    bootstrap_servers=KAFKA_BROKER,
+    bootstrap_servers=KAFKA_BROKER_IP,
     value_serializer=lambda v: json.dumps(v).encode('utf-8')  # JSON veriyi encode et
 )
 
@@ -47,7 +47,7 @@ for symbol_data in symbols:
         print(f"Sent data for symbol {symbol}: {message}")
         
         # Mesajların gönderildiğinden emin olmak için flush yap
-        producer.flush()
+      #  producer.flush()
         
         # API rate limit'e takılmamak için bekleyin (opsiyonel)
         time.sleep(1)

@@ -1,0 +1,1 @@
+/usr/lib/postgresql/13/bin/postgres "-c" "wal_level=logical" "-c" "max_replication_slots=1" "-c" "max_wal_senders=1"

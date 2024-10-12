@@ -5,34 +5,35 @@ import os
 import finnhub
 import time
 
-# .env dosyasını yükleyin
-load_dotenv()
+# Load .env file
 
-# Environment değişkenini alın
+load_dotenv(override=True) # this override=True is so important when you change your ip it's simple avoid waste of time 
+                            #Reloads the environment variables, overriding previous ones
+# Retrieve environment variables
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
-KAFKA_BROKER_IP = os.getenv("KAFKA_BROKER")  # .env dosyanızda broker bilgisi olmalı
-KAFKA_TOPIC = os.getenv("KAFKA_TOPIC")    # Gönderilecek Kafka topic'i
-
+KAFKA_BROKER_IP = os.getenv("KAFKA_BROKER")  # Your .env file should contain broker information
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC")    # The Kafka topic to send data to
 # Finnhub API client
 finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
-
-# Kafka producer ayarları
+print (KAFKA_BROKER_IP)
+# Kafka producer settings
 producer = KafkaProducer(
     bootstrap_servers=KAFKA_BROKER_IP,
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')  # JSON veriyi encode et
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')  #  encode json data 
 )
 
-# Finnhub API'den sembolleri al
+# Fetch symbols from Finnhub API
 symbols = finnhub_client.stock_symbols('US')
 
-# Her bir sembol için döngüye gir ve veriyi çek
+# Loop through each symbol and fetch data
+
 for symbol_data in symbols:
     symbol = symbol_data['symbol']
     try:
-        # Hisse verilerini al
+        # Fetch stock data
         stock_data = finnhub_client.quote(symbol)
         
-        # Veriyi JSON formatında Kafka'ya gönderilecek şekilde hazırlayın
+        # Prepare data in JSON format for Kafka
         message = {
             'symbol': symbol,
             'current_price': stock_data['c'],
@@ -42,20 +43,18 @@ for symbol_data in symbols:
             'previous_close': stock_data['pc']
         }
         
-        # Kafka topic'e veriyi gönder
+        # Send data to Kafka topic
         producer.send(KAFKA_TOPIC, value=message)
         print(f"Sent data for symbol {symbol}: {message}")
         
-        # Mesajların gönderildiğinden emin olmak için flush yap
-      #  producer.flush()
+        # ensure messages are sent
+        #  producer.flush()
         
-        # API rate limit'e takılmamak için bekleyin (opsiyonel)
+        # Wait to avoid API rate limit (optional)
         time.sleep(1)
         
     except Exception as e:
         print(f"Error fetching data for symbol {symbol}: {e}")
 
-# Tüm mesajların gönderildiğinden emin olun
-producer.flush()
 
 

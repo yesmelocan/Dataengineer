@@ -31,7 +31,7 @@ schema = StructType([
 
 
 kafkaDF = spark.readStream.format("kafka").option(
-    "kafka.bootstrap.servers", "35.226.77.9:9092").option(
+    "kafka.bootstrap.servers", "35.225.77.55:9092").option(
     "subscribe", "Test").load()
 
 #   

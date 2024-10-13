@@ -12,8 +12,24 @@ dag =  DAG(
     catchup=False, # he catchup parameter in Apache Airflow determines whether a DAG will run missed past schedules
     )
 
-sorgu =f"Select * from {PROJE_AD}.{DB_AD}.stock  where Price_Each > 1000"
-
+sorgu =f"""
+SELECT 
+    *,
+    CASE 
+        WHEN previous_close = 0 THEN NULL  
+        ELSE ABS(current_price - previous_close) / previous_close * 100 
+    END AS change_percentage,
+    AVG(current_price) OVER (PARTITION BY symbol, DATE(CURRENT_TIMESTAMP) ORDER BY CURRENT_TIMESTAMP ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS daily_average_price
+FROM 
+    de_stock.stock
+WHERE 
+    previous_close IS NOT NULL 
+    AND current_price IS NOT NULL 
+    AND previous_close != 0  -- previous_close sıfır olmayanları kontrol et
+    AND ABS(current_price - previous_close) / previous_close > 0.10
+ORDER BY 
+    change_percentage desc;
+"""
 create_new_table = BigQueryExecuteQueryOperator(
         task_id = "create_new_table",
         sql=sorgu,

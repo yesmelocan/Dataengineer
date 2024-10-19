@@ -1,9 +1,7 @@
 from airflow import DAG
-import pendulum
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
-PROJE_AD = "angelic-gift-431019-i2"
-DB_AD = "de_stock"
+import pendulum # type: ignore
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator # type: ignore
+from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator # type: ignore
 
 dag =  DAG(
     dag_id="18_GCSToBigQuery",
@@ -12,7 +10,7 @@ dag =  DAG(
     catchup=False, # he catchup parameter in Apache Airflow determines whether a DAG will run missed past schedules
     )
 
-sorgu =f"""
+query =f"""
 SELECT 
     *,
     CASE 
@@ -21,19 +19,19 @@ SELECT
     END AS change_percentage,
     AVG(current_price) OVER (PARTITION BY symbol, DATE(CURRENT_TIMESTAMP) ORDER BY CURRENT_TIMESTAMP ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS daily_average_price
 FROM 
-    de_stock.stock
+    DB_NAME.stock
 WHERE 
     previous_close IS NOT NULL 
     AND current_price IS NOT NULL 
-    AND previous_close != 0  -- previous_close sıfır olmayanları kontrol et
+    AND previous_close != 0  
     AND ABS(current_price - previous_close) / previous_close > 0.10
 ORDER BY 
     change_percentage desc;
 """
 create_new_table = BigQueryExecuteQueryOperator(
         task_id = "create_new_table",
-        sql=sorgu,
-        destination_dataset_table=f"{PROJE_AD}.{DB_AD}.analysis_project",
+        sql=query,
+        destination_dataset_table=f"{PROJECT_ID}.{DB_NAME}.analysis_project",
         create_disposition="CREATE_IF_NEEDED", 
         write_disposition="WRITE_TRUNCATE",#  WRITE_TRUNCATE, WRITE_APPEND, WRITE_EMPTY
         use_legacy_sql=False,

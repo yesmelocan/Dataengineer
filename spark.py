@@ -10,15 +10,16 @@ from pyspark.sql.types import StructType, StructField, StringType, DoubleType, T
 spark = (SparkSession.builder
          .appName("MyApp") # declared my app name
          .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.2") # include kafka to our system
-         .config("spark.jars", "gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar") # this package provide streaming between cloud and spark
+         .config("spark.jars", "gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar") 
+         # this package provide streaming between cloud and spark
          .getOrCreate())
 
-# kafka ve bigquery konfigurasyonları yüklenip yüklenmediğini kontrol etmek için aşağıdaki kodu kullanabilirsiniz.
+# You can use the code below to check if the Kafka and BigQuery configurations have been loaded.
 spark.sparkContext.getConf().getAll()
 
 bucket = "kafka-gcp" #temporary station  data comes  from spark to bigquery it's the temporary station
 spark.conf.set("temporaryGcsBucket", bucket) # Dataproc and my cluster should be in same zone
-spark.conf.set("parentProject", "angelic-gift-431019-i2")#us central-1 / dont forget to change project name 
+spark.conf.set("parentProject", "PROJECT_ID")#us central-1 / dont forget to change project name 
 
 schema = StructType([
     StructField("symbol", StringType(), True),
@@ -31,17 +32,15 @@ schema = StructType([
 
 
 kafkaDF = spark.readStream.format("kafka").option(
-    "kafka.bootstrap.servers", "35.225.77.55:9092").option(
+    "kafka.bootstrap.servers", "KAFKA_BROKER:9092").option(
     "subscribe", "Test").load()
+#KAFKA_BROKER is my kafka vm ip
 
-#   
 kafkaDF = kafkaDF.selectExpr("CAST(value AS STRING)")
 
-# JSON verilerini DataFrame'e dönüştürme
+# Converting JSON data to a DataFrame
 json_df = kafkaDF.select(from_json(col("value"), schema).alias("data"))
-
-
-# Verileri tablo haline getirme
+# converting data into a table
 json_df = json_df.select(
     col("data.symbol"),
     col("data.current_price"),
@@ -51,7 +50,6 @@ json_df = json_df.select(
     col("data.previous_close"),
 )
 
-
 df = (json_df
       .withColumn("current_price", col("current_price").cast(FloatType()))
       .withColumn("open_price", col("open_price").cast(FloatType()))
@@ -60,16 +58,11 @@ df = (json_df
       .withColumn("previous_close", col("previous_close").cast(FloatType()))
 )
 
-
-
-
 #de_stock.stock create tale in de_stock as name stock
 #"failOnDataLoss", False  if data comes false it will continue
 
 # model_write_console = df.writeStream.outputMode("append").format("console").start().awaitTermination()
 # #we control our structure is it working right or not we do that in the terminal not pyconsole
-
-
 
 save_data = df.writeStream\
     .outputMode("append").format("bigquery")\
@@ -78,3 +71,5 @@ save_data = df.writeStream\
     .option("failOnDataLoss", False)\
     .option("truncate", False)\
     .start().awaitTermination()
+    
+    

@@ -1,0 +1,101 @@
+version: "3.9"  # Specifies the version of the Docker Compose file format
+
+services:  # Defines the services that will be run in separate containers
+  zookeeper:  # Zookeeper service configuration
+    image: "bitnami/zookeeper:latest"  # Uses the Bitnami Zookeeper image
+    container_name: zookeeper  # Names the container "zookeeper"
+    environment:  # Sets environment variables for Zookeeper
+      ZOOKEEPER_CLIENT_PORT: 2181  # Client port for Zookeeper
+      ZOOKEEPER_TICK_TIME: 2000  # Tick time for Zookeeper
+    networks:  # Connects the service to the specified network
+      - kafka_network  
+
+  kafka:  # Kafka service configuration
+    image: "bitnami/kafka:3.3.1"  # Uses the Bitnami Kafka image
+    container_name: kafka-container-1  # Names the container "kafka-container-1"
+    hostname: kafka-1  # Sets the hostname for the Kafka container
+    depends_on:  # Specifies dependencies for service startup order
+      - zookeeper  # Kafka depends on Zookeeper
+    ports:  
+      - "9092:9092"  # Maps port 9092 of the host to port 9092 of the container
+    environment:  # Sets environment variables for Kafka configuration
+      KAFKA_BROKER_ID: 0  # Sets the broker ID for Kafka
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,PLAINTEXT_HOST://:9093"  # Configures listeners for Kafka
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"  # Security protocol mapping for listeners
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://34.76.8.138:9092,PLAINTEXT_HOST://kafka-1:9093"  # Advertises Kafka listeners
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181/kafka-1  # Connects Kafka to Zookeeper
+      ALLOW_PLAINTEXT_LISTENER: "yes"  # Allows plaintext connections
+    networks:  # Connects the service to the specified network
+      - kafka_network  
+
+  connect:  # Debezium Connect service configuration
+    image: debezium/connect:latest  # Uses the Debezium Connect image
+    container_name: connect  # Names the container "connect"
+    ports:  
+      - "8083:8083"  # Maps port 8083 of the host to port 8083 of the container
+    environment:  # Sets environment variables for Debezium configuration
+      BOOTSTRAP_SERVERS: 'kafka-1:9093'  # Specifies the Kafka bootstrap server
+      GROUP_ID: '1'  # Sets the Debezium consumer group ID
+      CONFIG_STORAGE_TOPIC: 'connect-configs'  # Config topic for Debezium
+      OFFSET_STORAGE_TOPIC: 'connect-offsets'  # Offset topic for Debezium
+      STATUS_STORAGE_TOPIC: 'connect-status'  # Status topic for Debezium
+      CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'  # Key converter for Debezium
+      CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'  # Value converter for Debezium
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'  # Internal key converter for Debezium
+      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'  # Internal value converter for Debezium
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'connect'  # REST API hostname for Debezium
+      CONNECT_PLUGIN_PATH: '/kafka/connect'  # Plugin path for Debezium
+      CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO'  # Sets the log level for Debezium
+    depends_on:  # Specifies dependencies for service startup order
+      - kafka  # Connect depends on Kafka
+    networks:  # Connects the service to the specified network
+      - kafka_network  
+
+  kafka-ui:  # Kafka UI service configuration
+    container_name: kafka-ui  # Names the container "kafka-ui"
+    image: provectuslabs/kafka-ui:master  # Uses the Kafka UI image
+    ports:  
+      - 8080:8080  # Maps port 8080 of the host to port 8080 of the container
+    depends_on:  # Specifies dependencies for service startup order
+      - kafka  # Kafka UI depends on Kafka
+    environment:  # Sets environment variables for Kafka UI configuration
+      KAFKA_CLUSTERS_0_NAME: local  # Names the Kafka cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-1:9093  # Bootstrap server for Kafka UI
+      DYNAMIC_CONFIG_ENABLED: 'true'  # Enables dynamic configuration in Kafka UI
+    networks:  # Connects the service to the specified network
+      - kafka_network  
+    
+  postgres:  # PostgreSQL service configuration
+    image: postgres:13  # Uses the PostgreSQL 13 image
+    container_name: postgres  # Names the container "postgres"
+    ports:  
+      - "5432:5432"  # Maps port 5432 of the host to port 5432 of the container
+    environment:  # Sets environment variables for PostgreSQL configuration
+      - POSTGRES_USER=postgres  # Sets the PostgreSQL user
+      - POSTGRES_PASSWORD=postgres  # Sets the PostgreSQL password
+      - POSTGRES_DB=postgres  # Sets the default PostgreSQL database
+      - PGDATA=/data/postgres  # Specifies data directory for PostgreSQL
+    networks:  # Connects the service to the specified network
+      - kafka_network
+    restart: unless-stopped  # Restarts the container unless stopped manually
+    volumes:  
+      - ./postgres:/data/postgres  # Mounts a volume for data persistence
+    
+    command: postgres -c wal_level=logical -c max_replication_slots=1 -c max_wal_senders=1  # Configures PostgreSQL for logical replication
+
+  pyspark:  # PySpark Jupyter Notebook service configuration
+    image: jupyter/pyspark-notebook  # Uses the Jupyter PySpark Notebook image
+    container_name: pyspark  # Names the container "pyspark"
+    environment:  # Sets environment variables for the Jupyter Notebook
+      JUPYTER_ENABLE_LAB: "yes"  # Enables Jupyter Lab interface
+    command: ["start-notebook.sh", "--NotebookApp.token='123'", "--NotebookApp.password=''"]  # Starts the Jupyter Notebook with token and password settings
+    ports:  
+      - "8888:8888"  # Maps port 8888 of the host to port 8888 of the container
+    volumes:  
+      - ./pyspark:/home/jovyan  # Mounts a volume for notebook storage
+    networks:  # Connects the service to the specified network
+      - kafka_network
+    
+networks:  # Defines custom networks for the services
+  kafka_network:  # Custom network for Kafka services
+    driver: bridge  # Uses the bridge driver for the network

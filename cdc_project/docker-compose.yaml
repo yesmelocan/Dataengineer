@@ -4,11 +4,12 @@
 version: "3.9"
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper":latest
+    image: "bitnami/zookeeper:latest"
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ALLOW_ANONYMOUS_LOGIN: "yes"   # anonymous login
     networks:
       - kafka_network
 
@@ -26,30 +27,30 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
     # If you are running it on your own computer, it should be PLAINTEXT localhost:9092.
     # If you are running it on a VM, it should be IP_address:9092.
-      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://34.76.8.138:9092,PLAINTEXT_HOST://kafka-1:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://34.134.96.44:9092,PLAINTEXT_HOST://kafka-1:9093"
       KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181/kafka-1
       ALLOW_PLAINTEXT_LISTENER: "yes"
     networks:
       - kafka_network
 
   connect:
-    image: debezium/connect:latest
+    image: debezium/connect:1.9
     container_name: connect
     ports:
       - "8083:8083"
     environment:
       BOOTSTRAP_SERVERS: 'kafka-1:9093'
-      GROUP_ID: '1' # Debezium consumer group id
-      CONFIG_STORAGE_TOPIC: 'connect-configs' # Debezium config topic
-      OFFSET_STORAGE_TOPIC: 'connect-offsets' # Debezium offset topic
-      STATUS_STORAGE_TOPIC: 'connect-status' # Debezium status topic
-      CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' # Key converter
-      CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' # Value converter
-      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' # Internal key converter
-      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' # Internal value converter
-      CONNECT_REST_ADVERTISED_HOST_NAME: 'connect' # Rest API'nin host adı
+      GROUP_ID: '1' 
+      CONFIG_STORAGE_TOPIC: 'connect-configs' 
+      OFFSET_STORAGE_TOPIC: 'connect-offsets' 
+      STATUS_STORAGE_TOPIC: 'connect-status' 
+      CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' 
+      CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' 
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' 
+      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter' 
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'connect' # Rest API host name
       CONNECT_PLUGIN_PATH: '/kafka/connect' # Plugin path
-      CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO' # Log level
+      CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO' 
     depends_on:
       - kafka
     networks:
@@ -88,6 +89,7 @@ services:
     # it's important to trigger that command when we work with postgres
     command: postgres -c wal_level=logical -c max_replication_slots=1 -c max_wal_senders=1
 
+
   pyspark:
     image: jupyter/pyspark-notebook
     container_name: pyspark
@@ -100,7 +102,7 @@ services:
       - ./pyspark:/home/jovyan
     networks:
       - kafka_network
-    
+
 networks:
   kafka_network:
     driver: bridge

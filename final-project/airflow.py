@@ -3,6 +3,9 @@ import pendulum # type: ignore
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator # type: ignore
 from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator # type: ignore
 
+PROJECT_ID = "august-button-430713-c9"
+DB_NAME =  "de_stock"
+
 dag =  DAG(
     dag_id="18_GCSToBigQuery",
     schedule="@daily",
